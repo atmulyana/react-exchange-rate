@@ -1,6 +1,6 @@
 # Simple App for calculating currency exchange rate
 
-Tesr code: FED-01 
+Test code: FED-01 
 
 ## Available Scripts
 
