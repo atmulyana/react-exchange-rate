@@ -1,21 +1,28 @@
-import React from 'react';
+import {useState, useEffect} from 'react';
 import numeral from 'numeral';
 import NumberFormat from "react-number-format";
+import LoadingIndicator from './LoadingIndicator';
 import './App.css';
-import currencies from './currencies';
+import currencies, {refreshRate} from './currencies';
 
 const INIT_VALUE = 10;
 const BASE_CURRENCY = Object.keys(currencies)[0];
 
 function App() {
-    const [value, setValue] = React.useState(INIT_VALUE);
-    const [list, setList] = React.useState(['IDR', 'EUR', 'GBP', 'SGD']);
-    const [isAdding, setAdding] = React.useState(false);
-    const notListed = Object.keys(currencies).filter(c => !list.includes(c) && c != BASE_CURRENCY);
+    const [value, setValue] = useState(INIT_VALUE);
+    const [list, setList] = useState(['IDR', 'EUR', 'GBP', 'SGD']);
+    const [isAdding, setAdding] = useState(false);
+    const [isRefreshing, setRefresh] = useState(true);
+    const notListed = Object.keys(currencies).filter(c => !list.includes(c) && c !== BASE_CURRENCY);
+
+    useEffect(() => {
+        if (isRefreshing) refreshRate().finally(() => setRefresh(false));
+    });
 
     return (
     <div class="row d-flex justify-content-center">
         <div class="App">
+            <LoadingIndicator show={isRefreshing} />
             <div class="section">
                 <div class="fs-7 fw-bold fst-italic">{BASE_CURRENCY} - {currencies[BASE_CURRENCY].name}</div>
                 <div class="input-group">
@@ -30,6 +37,7 @@ function App() {
                         allowNegative={false}
                         onValueChange={val => setValue(val.floatValue)}
                     />
+                    <button class="btn border" type="button" onClick={() => setRefresh(true)}>Refresh Rate</button>
                 </div>
             </div>
             <div class="separator"></div>
@@ -38,7 +46,7 @@ function App() {
                     remove={() => {
                         const idxCode = list.indexOf(code);
                         if (idxCode >= 0) {
-                            setList(list.filter((code, idx) => idx != idxCode));
+                            setList(list.filter((code, idx) => idx !== idxCode));
                         }
                     }}
                 />)}
@@ -55,7 +63,7 @@ function App() {
                             }}>Submit</button>
                     </div>
                     
-                    : <button type="button" class="btn border text-start" style={{width: '100%'}}
+                    : <button type="button" class="btn border text-start w-100"
                         onClick={() => setAdding(true)}>{'(+) Add More Currencies'}</button>
                 )}
             </div>
