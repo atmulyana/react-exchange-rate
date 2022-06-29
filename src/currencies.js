@@ -1,3 +1,5 @@
+const API_KEY = '<YOUR_API_KEY>';
+
 const val = (name, rate) => ({name, rate});
 
 const currencies = {
@@ -14,27 +16,81 @@ const currencies = {
     KRW: val('South Korean Won', 1167.42),
 }
 
-export const refreshRate = () => {
-    const curCodes = Object.keys(currencies),
-          baseCode = curCodes[0],
-          apiUrl = 'https://api.currencylayer.com/convert?access_key=78043916d97d6372736025516e52e69a&from=USD&amount=1&to=';
+export const baseCurrency = Object.keys(currencies)[0];
+
+///// One query for each currency
+/* export const refreshRate = () => {
+    
+    const curCodes = Object.keys(currencies).filter(code => code != baseCurrency)
+        , baseCode = baseCurrency
+        , headers = new Headers()
+        //, apiUrl = `https://api.currencylayer.com/convert?access_key=${API_KEY}&from=${baseCode}&amount=1&to=`
+        , apiUrl = `https://api.apilayer.com/currency_data/convert?from=${baseCode}&amount=1&to=`; headers.append('apikey', API_KEY);
     currencies[baseCode].rate = 1;
     
     const httpReqs = [];
-    for (let i = 1; i < curCodes.length; i++) {
+    for (let i = 0; i < curCodes.length; i++) {
         let code = curCodes[i];
         httpReqs.push(
-            fetch(apiUrl + code, {method: 'GET'}).then(response => {
+            fetch(apiUrl + code, {method: 'GET', headers}).then(response => {
                 if (response.ok) return response.json();
-                throw new Error('Respnse not OK');
+                throw new Error('Response not OK');
             }).then(data => {
-                currencies[code].rate = parseFloat(data.success && data.result) || 0.0;
+                if (data.success) {
+                    currencies[code].rate = parseFloat(data.result) || currencies[code].rate;
+                    currencies[code].error = null;
+                }
+                else {
+                    //currencies[code].rate = 0.0;
+                    currencies[code].error = data.error?.info || 'Error';
+                }
             }).catch(() => {
-                currencies[code].rate = 0;
+                //currencies[code].rate = 0.0;
+                currencies[code].error = "Error";
             })
         );
     }
     return Promise.all(httpReqs);
+} */
+
+
+///// Single query for all currencies (more efficient)
+export const refreshRate = () => {
+    
+    const curCodes = Object.keys(currencies).filter(code => code !== baseCurrency),
+          source = baseCurrency,
+          targets = curCodes.join(),
+          headers = new Headers(),
+          apiUrl = `https://api.apilayer.com/currency_data/live?source=${source}&currencies=${targets}`;
+    headers.append('apikey', API_KEY);
+    
+    currencies[source].rate = 1;
+    for (let i = 0; i < curCodes.length; i++) {
+        let code = curCodes[i];
+        currencies[code].error = null;
+    }
+
+    return fetch(apiUrl, {
+        method: 'GET',
+        redirect: 'follow',
+        headers
+    })
+        .then(async (response) => {
+            if (response.ok) return response.json();
+            throw await response.json();
+        }).then(data => {
+            if (data.success) {
+                for (let i = 0; i < curCodes.length; i++) {
+                    let code = curCodes[i];
+                    currencies[code].rate = data.quotes[source + code];
+                }
+            }
+            else {
+                alert('Cannot get data from server\n' + data.error?.info);
+            }
+        }).catch(err => {
+            alert('Cannot get data from server\n' + err?.message);
+        });
 }
 
 export default currencies;
